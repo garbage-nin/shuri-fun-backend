@@ -27,17 +27,17 @@ export class GalleryController {
     @Query('title') title?: string,
     @Query('description') description?: string,
     @Query('type') type?: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
   ) {
-    const result = await this.galleryService.getImages({
+    return this.galleryService.getImages({
       id,
       title,
       description,
       type,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
     });
-    return {
-      statusCode: result.success ? 200 : 400,
-      ...result,
-    };
   }
 
   @Post()

@@ -12,51 +12,47 @@ export class GalleryService {
     title?: string;
     description?: string;
     type?: string;
+    page?: number;
+    limit?: number;
   }) {
     const client = this.supabase.getClient();
 
-    try {
-      let query = client
-        .from('gallery')
-        .select('id, title, description, type, image_url, created_at');
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-      if (filters.id) {
-        query = query.eq('id', filters.id);
-      }
-      if (filters.title) {
-        query = query.ilike('title', `%${filters.title}%`);
-      }
-      if (filters.description) {
-        query = query.ilike('description', `%${filters.description}%`);
-      }
-      if (filters.type) {
-        query = query.eq('type', filters.type);
-      }
+    let query = client.from('gallery').select('*', { count: 'exact' });
 
-      const { data, error } = await query.order('created_at', {
-        ascending: false,
-      });
-
-      if (error) {
-        return {
-          success: false,
-          message: 'Failed to fetch gallery images',
-          error: error.message,
-        };
-      }
-
-      return {
-        success: true,
-        message: 'Gallery images fetched successfully',
-        data,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: 'Unexpected error occurred',
-        error: err.message,
-      };
+    if (filters.id) {
+      query = query.eq('id', filters.id);
     }
+    if (filters.title) {
+      query = query.ilike('title', `%${filters.title}%`);
+    }
+    if (filters.description) {
+      query = query.ilike('description', `%${filters.description}%`);
+    }
+    if (filters.type) {
+      query = query.contains('type', [filters.type]);
+    }
+
+    const { data, error, count } = await query.range(from, to);
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+
+    return {
+      success: true,
+      data,
+      meta: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil((count ?? 0) / limit),
+      },
+    };
   }
 
   async addImage(file: Express.Multer.File, dto: CreateGalleryDto) {
